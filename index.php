@@ -1,11 +1,15 @@
 <?php
-$mysqli = new mysqli("localhost", "2410923", "pp2410923", "db2410923");
-
-if ($mysqli->connect_error) {
-    die("Connection failed: " . $mysqli->connect_error);
+session_start(); 
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.php");
+    exit();
 }
 
-// Insert new book
+require "config.php";
+require "auth.php";
+checkLogin();
+
+// ------------------ INSERT NEW BOOK ------------------
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     $name = $mysqli->real_escape_string($_POST['Name']);
@@ -14,7 +18,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $rate = $mysqli->real_escape_string($_POST['Rate']);
     $category = $mysqli->real_escape_string($_POST['Category']);
 
-    // Handle image upload
+    // Upload image
     $imageName = $_FILES['image']['name'];
     $imageTmp = $_FILES['image']['tmp_name'];
 
@@ -30,16 +34,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         VALUES ('$name', '$description', '$release_date', '$rate', '$uploadPath', '$category')
     ";
 
-    if (!$mysqli->query($insert)) {
-        echo "Error: " . $mysqli->error;
-    }
+    $mysqli->query($insert);
 }
 
-// ----- SEARCH & FILTER -----
+// ------------------ SEARCH & FILTER ------------------
 $search = isset($_GET['search']) ? $mysqli->real_escape_string($_GET['search']) : "";
 $filterCategory = isset($_GET['category']) ? $mysqli->real_escape_string($_GET['category']) : "";
 
-// Build query
 $query = "SELECT * FROM `My books List` WHERE 1";
 
 if (!empty($search)) {
@@ -51,118 +52,104 @@ if (!empty($filterCategory)) {
 }
 
 $query .= " ORDER BY `Release date` DESC";
-
 $result = $mysqli->query($query);
 
-// Fetch unique categories
 $catQuery = $mysqli->query("SELECT DISTINCT `Category` FROM `My books List`");
+
+// ------------------ TOP RATED BOOKS ------------------
+$topBooks = $mysqli->query("
+    SELECT * FROM `My books List`
+    ORDER BY `Rate` DESC
+    LIMIT 5
+");
 ?>
+
 <!DOCTYPE html>
 <html>
 <head>
-    <title>My Books List</title>
+<title>My Books List</title>
 
 <style>
-body {
-    font-family: Arial;
-    background: var(--bg);
-    color: var(--text);
-    margin: 0;
-    transition: 0.3s;
-}
-:root {
-    --bg: #f2f2f2;
-    --text: #000;
-    --container: #fff;
-    --nav: #fff;
-}
-body.dark {
-    --bg: #1e1e1e;
-    --text: #fff;
-    --container: #2c2c2c;
-    --nav: #2c2c2c;
-}
-
-.navbar {
-    width: 100%;
-    padding: 15px 30px;
-    background: var(--nav);
-    display: flex;
-    justify-content: space-between;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    position: sticky;
-    top: 0;
-}
-.navbar h1 { margin: 0; }
-.toggle-btn {
-    padding: 8px 15px;
-    background: #007bff;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-}
+/* ORIGINAL CSS (not removed) */
+body { font-family: Arial; background: var(--bg); color: var(--text); margin: 0; transition: 0.3s; }
+:root { --bg: #f2f2f2; --text: #000; --container: #fff; --nav: #fff; }
+body.dark { --bg: #1e1e1e; --text: #fff; --container: #2c2c2c; --nav: #2c2c2c; }
+.navbar { width: 100%; padding: 15px 30px; background: var(--nav); display: flex; justify-content: space-between; box-shadow: 0 2px 4px rgba(0,0,0,0.2); position: sticky; top: 0; }
+.toggle-btn { padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
 
 .container { max-width: 1200px; margin: auto; padding: 20px; }
 
 .form-container, .book-list {
-    background: var(--container);
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-    margin-bottom: 20px;
-    animation: fadeIn 1s forwards;
-    opacity: 0;
+    background: var(--container); padding: 20px; border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2); margin-bottom: 20px;
+    animation: fadeIn 1s forwards; opacity: 0;
 }
 @keyframes fadeIn { to { opacity: 1; } }
 
 input, textarea, select {
-    width: 100%;
-    padding: 10px;
-    margin-bottom: 15px;
-    background: var(--bg);
-    color: var(--text);
-    border: 1px solid #666;
-    border-radius: 5px;
+    width: 100%; padding: 10px; margin-bottom: 15px;
+    background: var(--bg); color: var(--text); border: 1px solid #666; border-radius: 5px;
 }
 
-button {
-    padding: 12px 25px;
-    background: #007bff;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-}
+button { padding: 12px 25px; background: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; }
 button:hover { transform: scale(1.05); }
 
 table { width: 100%; border-collapse: collapse; }
 th, td { padding: 12px; border-bottom: 1px solid #666; }
-th {
-    background: #007bff;
-    color: white;
+th { background: #007bff; color: white; }
+img { width: 100px; border-radius: 8px; }
+
+.details-btn, .edit-btn, .delete-btn {
+    padding: 8px 12px; color: white; border-radius: 6px; text-decoration: none;
 }
-img {
-    width: 100px;
+.details-btn { background: green; }
+.edit-btn { background: orange; }
+.delete-btn { background: red; }
+
+.search-bar { display: flex; gap: 10px; margin-bottom: 20px; }
+
+/* ⭐ TOP RATED SLIDER CSS ⭐ */
+.slider {
+    display: flex;
+    gap: 20px;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    padding-bottom: 10px;
+}
+
+.slider::-webkit-scrollbar {
+    height: 8px;
+}
+.slider::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 10px;
+}
+
+.slide {
+    min-width: 220px;
+    background: var(--container);
+    padding: 15px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    transition: 0.3s;
+}
+
+.slide img {
+    width: 100%;
+    height: 260px;
+    object-fit: cover;
     border-radius: 8px;
 }
-
-.details-btn { padding: 8px 12px; background: green; color: white; border-radius: 6px; text-decoration: none; }
-.edit-btn { padding: 8px 12px; background: orange; color: white; border-radius: 6px; text-decoration: none; }
-.delete-btn { padding: 8px 12px; background: red; color: white; border-radius: 6px; text-decoration: none; }
-
-.search-bar {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 20px;
-}
-.search-bar input, .search-bar select {
-    flex: 1;
+.slide:hover {
+    transform: scale(1.05);
 }
 </style>
 
 </head>
 <body>
+
+<a href="logout.php" class="logout-btn">logout</a>
 
 <div class="navbar">
     <h1>📚 My Books</h1>
@@ -171,7 +158,22 @@ img {
 
 <div class="container">
 
-<!-- SEARCH + FILTER -->
+<!-- ⭐ TOP RATED SLIDER ⭐ -->
+<div class="book-list">
+    <h2>Top Rated Books ⭐</h2>
+
+    <div class="slider" id="topBooksSlider">
+        <?php while ($top = $topBooks->fetch_assoc()): ?>
+            <div class="slide">
+                <img src="<?php echo $top['image']; ?>">
+                <h3><?php echo $top['Name']; ?></h3>
+                <p>⭐ <?php echo $top['Rate']; ?></p>
+            </div>
+        <?php endwhile; ?>
+    </div>
+</div>
+
+<!-- SEARCH & FILTER -->
 <div class="book-list">
     <h2>Search & Filter</h2>
 
@@ -181,8 +183,7 @@ img {
         <select name="category">
             <option value="">All Categories</option>
             <?php while ($c = $catQuery->fetch_assoc()): ?>
-                <option value="<?php echo $c['Category']; ?>" 
-                    <?php if ($c['Category'] == $filterCategory) echo "selected"; ?>>
+                <option value="<?php echo $c['Category']; ?>" <?php if ($c['Category'] == $filterCategory) echo "selected"; ?>>
                     <?php echo $c['Category']; ?>
                 </option>
             <?php endwhile; ?>
@@ -210,7 +211,7 @@ img {
         <input type="number" step="0.1" name="Rate" required>
 
         <label>Category:</label>
-        <input type="text" name="Category" placeholder="e.g. Fantasy, Romance, Horror" required>
+        <input type="text" name="Category" required>
 
         <label>Image:</label>
         <input type="file" name="image" accept="image/*" required>
@@ -236,6 +237,7 @@ img {
             <th>Delete</th>
         </tr>
 
+        <tbody id="books-container">
         <?php while ($row = $result->fetch_assoc()): ?>
         <tr>
             <td><?php echo $row['Name']; ?></td>
@@ -243,14 +245,10 @@ img {
             <td><?php echo $row['Release date']; ?></td>
 
             <td>
-                <?php
-                    $stars = floor($row['Rate']);
-                    for ($i = 0; $i < $stars; $i++) echo "⭐";
-                ?>
+                <?php for ($i = 0; $i < floor($row['Rate']); $i++) echo "⭐"; ?>
             </td>
 
             <td><?php echo $row['Category']; ?></td>
-
             <td><img src="<?php echo $row['image']; ?>"></td>
 
             <td><a class="details-btn" href="details.php?id=<?php echo $row['Id']; ?>">View</a></td>
@@ -258,18 +256,46 @@ img {
             <td><a class="delete-btn" href="delete.php?id=<?php echo $row['Id']; ?>" onclick="return confirm('Delete this book?')">Delete</a></td>
         </tr>
         <?php endwhile; ?>
+        </tbody>
+
     </table>
 </div>
 
 </div>
 
 <script>
-// Dark mode
 function toggleDarkMode() {
     document.body.classList.toggle("dark");
     localStorage.setItem("darkMode", document.body.classList.contains("dark") ? "enabled" : "");
 }
 if (localStorage.getItem("darkMode") === "enabled") document.body.classList.add("dark");
+</script>
+
+<!-- AJAX LIVE SEARCH -->
+<script>
+function liveSearch() {
+    let search = document.querySelector("input[name='search']").value;
+    let category = document.querySelector("select[name='category']").value;
+
+    fetch(`search_ajax.php?search=${encodeURIComponent(search)}&category=${encodeURIComponent(category)}`)
+        .then(res => res.text())
+        .then(data => {
+            document.getElementById("books-container").innerHTML = data;
+        });
+}
+
+document.querySelector("input[name='search']").addEventListener("keyup", liveSearch);
+document.querySelector("select[name='category']").addEventListener("change", liveSearch);
+</script>
+
+<!-- ⭐ AUTO-SCROLL SLIDER -->
+<script>
+setInterval(() => {
+    document.getElementById("topBooksSlider").scrollBy({
+        left: 250,
+        behavior: "smooth"
+    });
+}, 3000);
 </script>
 
 </body>
