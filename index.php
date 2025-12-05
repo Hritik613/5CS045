@@ -248,4 +248,4 @@ setInterval(() => {
 </script>
 
 </body>
-</html> fix image code on it don't change anything 
+</html>  
