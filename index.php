@@ -9,34 +9,6 @@ require "config.php";
 require "auth.php";
 checkLogin();
 
-// ------------------ INSERT NEW BOOK ------------------
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-
-    $name = $mysqli->real_escape_string($_POST['Name']);
-    $description = $mysqli->real_escape_string($_POST['Description']);
-    $release_date = $mysqli->real_escape_string($_POST['Release_date']);
-    $rate = $mysqli->real_escape_string($_POST['Rate']);
-    $category = $mysqli->real_escape_string($_POST['Category']);
-
-    // Upload image
-    $imageName = $_FILES['image']['name'];
-    $imageTmp = $_FILES['image']['tmp_name'];
-
-    if (!is_dir("uploads")) {
-        mkdir("uploads", 0777, true);
-    }
-
-    $uploadPath = "uploads/" . basename($imageName);
-    move_uploaded_file($imageTmp, $uploadPath);
-
-    $insert = "
-        INSERT INTO `My books List` (`Name`, `Description`, `Release date`, `Rate`, `image`, `Category`)
-        VALUES ('$name', '$description', '$release_date', '$rate', '$uploadPath', '$category')
-    ";
-
-    $mysqli->query($insert);
-}
-
 // ------------------ SEARCH & FILTER ------------------
 $search = isset($_GET['search']) ? $mysqli->real_escape_string($_GET['search']) : "";
 $filterCategory = isset($_GET['category']) ? $mysqli->real_escape_string($_GET['category']) : "";
@@ -70,7 +42,6 @@ $topBooks = $mysqli->query("
 <title>My Books List</title>
 
 <style>
-/* ORIGINAL CSS (not removed) */
 body { font-family: Arial; background: var(--bg); color: var(--text); margin: 0; transition: 0.3s; }
 :root { --bg: #f2f2f2; --text: #000; --container: #fff; --nav: #fff; }
 body.dark { --bg: #1e1e1e; --text: #fff; --container: #2c2c2c; --nav: #2c2c2c; }
@@ -79,7 +50,7 @@ body.dark { --bg: #1e1e1e; --text: #fff; --container: #2c2c2c; --nav: #2c2c2c; }
 
 .container { max-width: 1200px; margin: auto; padding: 20px; }
 
-.form-container, .book-list {
+.book-list {
     background: var(--container); padding: 20px; border-radius: 10px;
     box-shadow: 0 4px 10px rgba(0,0,0,0.2); margin-bottom: 20px;
     animation: fadeIn 1s forwards; opacity: 0;
@@ -108,7 +79,6 @@ img { width: 100px; border-radius: 8px; }
 
 .search-bar { display: flex; gap: 10px; margin-bottom: 20px; }
 
-/* ⭐ TOP RATED SLIDER CSS ⭐ */
 .slider {
     display: flex;
     gap: 20px;
@@ -153,6 +123,12 @@ img { width: 100px; border-radius: 8px; }
 
 <div class="navbar">
     <h1>📚 My Books</h1>
+
+    <!-- ⭐ Add Book Button ⭐ -->
+    <a href="add_book.php">
+        <button>Add New Book</button>
+    </a>
+
     <button class="toggle-btn" onclick="toggleDarkMode()">🌙 Dark Mode</button>
 </div>
 
@@ -190,33 +166,6 @@ img { width: 100px; border-radius: 8px; }
         </select>
 
         <button type="submit">Search</button>
-    </form>
-</div>
-
-<!-- ADD BOOK -->
-<div class="form-container">
-    <h2>Add a New Book</h2>
-
-    <form method="POST" enctype="multipart/form-data">
-        <label>Book Name:</label>
-        <input type="text" name="Name" required>
-
-        <label>Description:</label>
-        <textarea name="Description" required></textarea>
-
-        <label>Release Date:</label>
-        <input type="date" name="Release_date" required>
-
-        <label>Rate (1–5):</label>
-        <input type="number" step="0.1" name="Rate" required>
-
-        <label>Category:</label>
-        <input type="text" name="Category" required>
-
-        <label>Image:</label>
-        <input type="file" name="image" accept="image/*" required>
-
-        <button type="submit">Add Book</button>
     </form>
 </div>
 
@@ -299,4 +248,4 @@ setInterval(() => {
 </script>
 
 </body>
-</html>
+</html> fix image code on it don't change anything 

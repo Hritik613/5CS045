@@ -145,6 +145,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <label>Password:</label>
     <input type="password" name="password" required>
 
+    <!-- ❤️ CAPTCHA BLOCK ADDED EXACTLY AS REQUESTED -->
+    <div class="mb-3 border p-3 rounded bg-light">
+        <label class="form-label">Security Check: Enter the code below</label>
+        <img src="captcha.php" alt="CAPTCHA Image" style="border: 2px solid #555; margin-bottom: 10px; display: block;">
+        <input type="text" class="form-control" id="captcha_code" name="captcha_code" placeholder="Enter CAPTCHA Code" required autocomplete="off">
+    </div>
+    <!-- END CAPTCHA -->
+
     <button type="submit">Register</button>
 </form>
 
